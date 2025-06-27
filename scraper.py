@@ -49,7 +49,18 @@ else:
     with open("cookies.json", "w") as f:
         json.dump(driver.get_cookies(), f)
 
-    wait = WebDriverWait(driver, 15)
+    # wait = WebDriverWait(driver, 15)
 
-    order_page = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[.//span[text()="Orders"]]')))
-    ActionChains(driver).move_to_element(order_page).click().perform()
+    # order_page = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[.//span[text()="Orders"]]')))
+    # ActionChains(driver).move_to_element(order_page).click().perform()
+
+orders = driver.find_elements(By.CSS_SELECTOR, 'a[href^="/orders/"]')
+
+order_urls = [
+    link.get_attribute("href") for link in orders
+]
+
+print(order_urls)
+
+
+
