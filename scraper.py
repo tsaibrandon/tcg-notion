@@ -57,13 +57,10 @@ else:
     # order_page = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[.//span[text()="Orders"]]')))
     # ActionChains(driver).move_to_element(order_page).click().perform()
 
-orders = driver.find_elements(By.CLASS_NAME, 'color-surface-link')
-
+orders = driver.find_elements(By.CSS_SELECTOR, '.color-surface-link')
 order_urls = [
     link.get_attribute("href") for link in orders
 ]
-
-print(order_urls)
 
 order_data = []
 
@@ -80,7 +77,7 @@ for url in order_urls:
         'div[data-testid="OrderDetails_TransactionDetails_Table"] '
         'td.tcg-table-body__cell--align-right ' 
         'span'
-        )
+    )
     if len(transaction_info) >= 4:
         product_amt = transaction_info[0].text.strip()
         shipping_amt = transaction_info[1].text.strip()
@@ -92,10 +89,31 @@ for url in order_urls:
         fee_amt = 'N/A'
         net_amt = 'N/A'
     
-    order_amt = driver.find_element(By.CSS_SELECTOR, 'td.tcg-table-body__cell strong').text
+    order_amt = driver.find_element(
+        By.CSS_SELECTOR, 
+        'div[data-testid="OrderDetails_TransactionDetails_Table"] '
+        'td.tcg-table-body__cell strong'
+    ).text
 
-    # products = driver.find_elements(By.)
+    products = driver.find_elements(
+        By.CSS_SELECTOR,
+        'div[data-testid="OrderDetails_ProductDetails_Table] tbody tr'
+    )
+
+    for product in products:
+        product_info = product.find_elements(By.CSS_SELECTOR, 'td')
+
+        if len(product) == 4:
+            listed_price = product_info[1].text.strip()
+            qty_sold = product_info[2].text.strip()
+            total_price = product_info[3].text.strip()
+   
+
+    # product_urls = [
+    #     link.get_attribute("href") for link in products
+    # ]
     
+
 
     print(order_id)
     print(buyer_name)
@@ -104,6 +122,10 @@ for url in order_urls:
     print(order_amt)
     print(fee_amt)
     print(net_amt)
+
+    print(listed_price)
+    print(qty_sold)
+    print(total_price)
 
 
 
