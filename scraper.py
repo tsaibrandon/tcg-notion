@@ -2,6 +2,7 @@ import undetected_chromedriver as uc
 import time
 import json
 import os
+import csv
 
 from numpy import empty
 from selenium.webdriver.common.keys import Keys
@@ -57,12 +58,28 @@ else:
     # order_page = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[.//span[text()="Orders"]]')))
     # ActionChains(driver).move_to_element(order_page).click().perform()
 
-orders = driver.find_elements(By.CSS_SELECTOR, '.color-surface-link')
-order_urls = [
-    link.get_attribute("href") for link in orders
-]
+orders = driver.find_elements(
+    By.CSS_SELECTOR, 
+    'tbody.tcg-table-body tr.is-even, '
+    'tbody.tcg-table-body tr.is-odd'
+    )
 
-order_data = []
+order_urls = []
+
+for order in orders:
+    try:
+        order_status = order.find_element(By.CSS_SELECTOR, 'span.tcg-status-badge__content').text
+
+        if order_status in ["Shipped - In Transit", "Completed - Paid", "Completed - Payment Pending"]:
+            order_links = order.find_element(By.CSS_SELECTOR, '.color-surface-link')
+            urls = order_links.get_attribute("href")
+            order_urls.append(urls)
+            
+    except Exception as e:
+        print("Skipping row", e)
+        continue
+    
+all_orders = []
 
 for url in order_urls:
     driver.get(url)
@@ -97,37 +114,42 @@ for url in order_urls:
 
     products = driver.find_elements(
         By.CSS_SELECTOR,
-        'div[data-testid="OrderDetails_ProductDetails_Table] tbody tr'
+        'div[data-testid="OrderDetails_ProductDetails_Table"] tbody tr'
     )
 
     for product in products:
         product_info = product.find_elements(By.CSS_SELECTOR, 'td')
 
-        if len(product) == 4:
+        if len(product) >= 4:
             listed_price = product_info[1].text.strip()
             qty_sold = product_info[2].text.strip()
             total_price = product_info[3].text.strip()
+
+            print(listed_price)
+            print(qty_sold)
+            print(total_price)
    
+
+    all_orders.append({
+        "Order ID:": order_id,
+        "Buyer": buyer_name,
+        "Product Amount": product_amt,
+        "Shipping Amount": shipping_amt,
+        "Order Amount": order_amt,
+        "Fee Amount": fee_amt,
+        "Net Amount": net_amt
+    })
 
     # product_urls = [
     #     link.get_attribute("href") for link in products
     # ]
+
+with open("tcg_orders.csv", mode="w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=all_orders[0].keys())
+    writer.writeheader()
+    writer.writerows(all_orders)
     
 
 
-    print(order_id)
-    print(buyer_name)
-    print(product_amt)
-    print(shipping_amt)
-    print(order_amt)
-    print(fee_amt)
-    print(net_amt)
-
-    print(listed_price)
-    print(qty_sold)
-    print(total_price)
-
-
-
-
+    
 
