@@ -74,7 +74,7 @@ for order in orders:
             order_links = order.find_element(By.CSS_SELECTOR, '.color-surface-link')
             urls = order_links.get_attribute("href")
             order_urls.append(urls)
-            
+
     except Exception as e:
         print("Skipping row", e)
         continue
@@ -114,20 +114,23 @@ for url in order_urls:
 
     products = driver.find_elements(
         By.CSS_SELECTOR,
-        'div[data-testid="OrderDetails_ProductDetails_Table"] tbody tr'
+        'div[data-testid="OrderDetails_ProductDetails_Table"] '
+        'tbody tr.is-even, '
+        'div[data-testid="OrderDetails_ProductDetails_Table"] '
+        'tbody tr.is-odd'
     )
 
-    for product in products:
-        product_info = product.find_elements(By.CSS_SELECTOR, 'td')
+    # for product in products:
+    #     product_info = product.find_elements(By.CSS_SELECTOR, 'td')
 
-        if len(product) >= 4:
-            listed_price = product_info[1].text.strip()
-            qty_sold = product_info[2].text.strip()
-            total_price = product_info[3].text.strip()
+    #     if len(product) >= 4:
+    #         listed_price = product_info[1].text.strip()
+    #         qty_sold = product_info[2].text.strip()
+    #         total_price = product_info[3].text.strip()
 
-            print(listed_price)
-            print(qty_sold)
-            print(total_price)
+    #         print(listed_price)
+    #         print(qty_sold)
+    #         print(total_price)
    
 
     all_orders.append({
