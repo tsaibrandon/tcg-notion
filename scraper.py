@@ -70,9 +70,9 @@ for order in orders:
     try:
         order_status = order.find_element(By.CSS_SELECTOR, 'span.tcg-status-badge__content').text
 
-        if order_status in ["Shipped - In Transit", "Completed - Paid", "Completed - Payment Pending"]:
+        if order_status in ['Shipped - In Transit', 'Completed - Paid', 'Completed - Payment Pending']:
             order_links = order.find_element(By.CSS_SELECTOR, '.color-surface-link')
-            urls = order_links.get_attribute("href")
+            urls = order_links.get_attribute('href')
             order_urls.append(urls)
 
     except Exception as e:
@@ -114,38 +114,81 @@ for url in order_urls:
 
     products = driver.find_elements(
         By.CSS_SELECTOR,
-        'div[data-testid="OrderDetails_ProductDetails_Table"] '
+        'div[data-testid="OrderDetails_ProductList_Table"] '
         'tbody tr.is-even, '
-        'div[data-testid="OrderDetails_ProductDetails_Table"] '
+        'div[data-testid="OrderDetails_ProductList_Table"] '
         'tbody tr.is-odd'
     )
 
+    product_list = []
+
     # for product in products:
-    #     product_info = product.find_elements(By.CSS_SELECTOR, 'td')
+    #     try:
+    #         tds = product.find_elements(By.CSS_SELECTOR, 'td')
+    #         if len(tds) >= 4:
+    #             product_url = (
+    #                 tds[0].find_element(By.TAG_NAME, 'a').get_attribute('href')
+    #                 if tds[0].find_elements(By.TAG_NAME, 'a') else 'N/A'
+    #             )
+    #             product_list.append({
+    #                 "Name": tds[0].text.strip(),
+    #                 "URL": product_url,
+    #                 "MP Price": tds[1].text.strip(),
+    #                 "Quantity": tds[2].text.strip(),
+    #                 "Ext Price": tds[3].text.strip()
+    #             })
+    #     except Exception as e:
+    #         print("Skipping product row:", e)
+    #         continue
 
-    #     if len(product) >= 4:
-    #         listed_price = product_info[1].text.strip()
-    #         qty_sold = product_info[2].text.strip()
-    #         total_price = product_info[3].text.strip()
 
-    #         print(listed_price)
-    #         print(qty_sold)
-    #         print(total_price)
-   
+    for product in products:
+        try:
+            tds = product.find_elements(By.CSS_SELECTOR, 'td')
+            if len(tds) >= 4:
+                link_element = tds[0].find_element(By.TAG_NAME, 'a')
+                link = link_element.get_attribute('href')
+
+                # ✅ Wait until the product name is non-empty
+                wait.until(lambda d: link_element.text.strip() != "")
+
+                name = link_element.text.strip()
+                mp_price = tds[1].text.strip()
+                quantity = tds[2].text.strip()
+                ext_price = tds[3].text.strip()
+
+                print("Product Name:", name)
+                print("URL:", link)
+                print("MP Price:", mp_price)
+                print("Qty:", quantity)
+                print("Ext Price:", ext_price)
+
+                product_list.append({
+                    "Name": name,
+                    "URL": link,
+                    "MP Price": mp_price,
+                    "Quantity": quantity,
+                    "Ext Price": ext_price
+                })
+
+        except Exception as e:
+            print("Skipping product row:", e)
+            continue
+
+
+
 
     all_orders.append({
-        "Order ID:": order_id,
-        "Buyer": buyer_name,
-        "Product Amount": product_amt,
-        "Shipping Amount": shipping_amt,
-        "Order Amount": order_amt,
-        "Fee Amount": fee_amt,
-        "Net Amount": net_amt
+        'Order ID': order_id,
+        'Buyer': buyer_name,
+        'Product Amount': product_amt,
+        'Shipping Amount': shipping_amt,
+        'Order Amount': order_amt,
+        'Fee Amount': fee_amt,
+        'Net Amount': net_amt,
+        'Products': json.dumps(product_list)
     })
 
-    # product_urls = [
-    #     link.get_attribute("href") for link in products
-    # ]
 
 with open("tcg_orders.csv", mode="w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=all_orders[0].keys())
