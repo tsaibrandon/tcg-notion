@@ -103,7 +103,7 @@ existing_orders = set()
 if os.path.exists(csv_file):
     try:
         df_existing = pd.read_csv(csv_file)
-        existing_orders = set(df_existing['Order ID'].astype(str).tolist())
+        existing_orders = set(df_existing['Order ID'].astype(str).str.strip().tolist())
     except Exception as e:
         print(f'Erro reading existing CSV: {e}')
     
@@ -116,7 +116,7 @@ for url in order_urls:
 
         time.sleep(random.uniform(1.2, 2.4))
 
-        order_id = url.split("/")[-1]
+        order_id = url.split("/")[-1].strip()
         if order_id in existing_orders:
             print(f'Skipping duplicate order: {order_id}')
             continue
@@ -169,38 +169,52 @@ for url in order_urls:
                 tds = p.find_elements(By.CSS_SELECTOR, 'td')
                 
                 if len(tds) >= 4:
-                    # link_element = tds[0].find_element(By.TAG_NAME, 'a')
-                    # link = link_element.get_attribute('href')
-
-                    # wait.until(lambda d: link_element.text.strip() != "")
-
-                    # name = link_element.text.strip()
-
-                    # wait.until(lambda d: tds[0].find_element(By.TAG_NAME, 'a').text.strip() != "")
-                    # link_element = tds[0].find_element(By.TAG_NAME, 'a')
-                    # link = link_element.get_attribute('href')
-                    # name = link_element.text.strip()
+                    link_element = tds[0].find_element(By.TAG_NAME, 'a')
+                    link = link_element.get_attribute('href')
 
                     mp_price = tds[1].text.strip()
                     quantity = tds[2].text.strip()
                     ext_price = tds[3].text.strip()
 
-                    if not mp_price and not quantity and not ext_price:
-                        continue
+                    # original_window = driver.window_handles
+                    # driver.execute_script('window.open(arguments[0]);', link)
 
-                    # print("Product Name:", name)
-                    # print("URL:", link)
-                    print("MP Price:", mp_price)
-                    print("Qty:", quantity)
-                    print("Ext Price:", ext_price)
+                    # wait.until(lambda d: len(d.window_handles) > len(original_window))
+                    # new_window = [w for w in driver.window_handles if w not in original_window][0]
+                    # driver.switch_to.window(new_window)
 
-                    product_list.append({
-                        # "Name": name,
-                        # "URL": link,
-                        "MP Price": mp_price,
-                        "Quantity": quantity,
-                        "Ext Price": ext_price
-                    })
+                    # wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.product-details__name')))
+                    # card_name = driver.find_element(By.CSS_SELECTOR, 'h1.product-details__name').text.strip()
+                    
+                    # if '-' in card_name:
+                    #     part_name = card_name.split(' - ')
+                    #     card_name_num = part_name[0].strip() if len(part_name) >=2 else card_name
+                    # else:
+                    #     card_name_num = card_name
+
+                    # market_price = driver.find_element(By.CSS_SELECTOR, 'span.price-points__upper__price').text.strip()
+
+                    # driver.close()
+                    # driver.switch_to.window(original_window)
+
+                if not mp_price and not quantity and not ext_price:
+                    continue
+
+                # print('Product Name:', card_name_num)
+                # print('Market Price:', market_price)
+                print('URL:', link)
+                print('MP Price:', mp_price)
+                print('Qty:', quantity)
+                print('Ext Price:', ext_price)
+
+                product_list.append({
+                    'URL': link,
+                    # 'Product Name': card_name_num,
+                    # 'Market Price': market_price,
+                    'MP Price': mp_price,
+                    'Quantity': quantity,
+                    'Exact Price': ext_price
+                })   
 
             except Exception as e:
                 print("Skipping product row:", e)
@@ -229,6 +243,7 @@ if all_orders:
         writer = csv.DictWriter(f, fieldnames=all_orders[0].keys())
         
         if not file_exists:
+            print(f'Writing {len(all_orders)} new orders to {csv_file}')
             writer.writeheader()
         writer.writerows(all_orders)
 else:
