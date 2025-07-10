@@ -1,5 +1,7 @@
 import undetected_chromedriver as uc
+import pandas as pd
 import time
+import random
 import json
 import os
 import csv
@@ -11,31 +13,49 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+def start_driver():
+    driver = uc.Chrome()
+    wait = WebDriverWait(driver, 10)
+    return driver, wait
 
-driver = uc.Chrome()
-wait = WebDriverWait(driver, 10)
-cookies_file = "cookies.json"
+def restart_driver(driver):
+    try:
+        driver.quit()
+    except:
+        pass
+    
+    return start_driver()
+
+driver, wait = start_driver()
+cookies_file = 'cookies.json'
 
 if os.path.exists(cookies_file):
-    driver.get("https://seller.tcgplayer.com")
+    driver.get('https://seller.tcgplayer.com')
 
     time.sleep(2)
 
-    with open(cookies_file, "r") as f:
+    with open(cookies_file, 'r') as f:
         cookies = json.load(f)
 
     for cookie in cookies:
-        if isinstance(cookie.get("expiry"), float):
-            cookie["expiry"] = int(cookie["expiry"])
+        if isinstance(cookie.get('expiry'), float):
+            cookie['expiry'] = int(cookie['expiry'])
         try:
             driver.add_cookie(cookie)
         except Exception as e:
-            print(f"Failed to add cookie {cookie.get('name')} - {e}")
+            print(f'Failed to add cookie {cookie.get("name")} - {e}')
 
-    driver.get("https://sellerportal.tcgplayer.com/orders?searchRange=LastThreeMonths&page=1&size=25&sortBy=orderStatus,asc&sortBy=orderDate,asc&qfid=All")
-    input("Check if you were logged in. Press ENTER to continue.")
+    driver.get(
+        'https://sellerportal.tcgplayer.com/orders?searchRange=LastThreeMonths&page=1&size=25&sortBy=orderStatus,asc&sortBy=orderDate,asc&qfid=All'
+    )
+    
+    input('If you have been logged in, press ENTER to continue.')
 
 else:
+    driver.get('https://seller.tcgplayer.com')
+
+    time.sleep(2)
+
     cookie_buttons = driver.find_elements(By.ID, 'hs-eu-confirmation-button')
     if cookie_buttons:
         ActionChains(driver).move_to_element(cookie_buttons[0]).click().perform()
@@ -50,7 +70,7 @@ else:
 
     input("Please log in and hit enter")
 
-    with open("cookies.json", "w") as f:
+    with open('cookies.json', 'w') as f:
         json.dump(driver.get_cookies(), f)
 
     # wait = WebDriverWait(driver, 15)
@@ -71,129 +91,149 @@ for order in orders:
         order_status = order.find_element(By.CSS_SELECTOR, 'span.tcg-status-badge__content').text
 
         if order_status in ['Shipped - In Transit', 'Completed - Paid', 'Completed - Payment Pending']:
-            order_links = order.find_element(By.CSS_SELECTOR, '.color-surface-link')
-            urls = order_links.get_attribute('href')
-            order_urls.append(urls)
+            href = order.find_element(By.CSS_SELECTOR, '.color-surface-link').get_attribute('href')
+            order_urls.append(href)
 
     except Exception as e:
         print("Skipping row", e)
-        continue
+
+csv_file = 'tcg_orders.csv'
+existing_orders = set()
+
+if os.path.exists(csv_file):
+    try:
+        df_existing = pd.read_csv(csv_file)
+        existing_orders = set(df_existing['Order ID'].astype(str).tolist())
+    except Exception as e:
+        print(f'Erro reading existing CSV: {e}')
     
 all_orders = []
 
 for url in order_urls:
-    driver.get(url)
 
-    time.sleep(1)
+    try:
+        driver.get(url)
 
-    order_id = url.split("/")[-1]
-    buyer_name = driver.find_element(By.CSS_SELECTOR, 'p.margin-0 > strong').text
+        time.sleep(random.uniform(1.2, 2.4))
 
-    transaction_info = driver.find_elements(
-        By.CSS_SELECTOR, 
-        'div[data-testid="OrderDetails_TransactionDetails_Table"] '
-        'td.tcg-table-body__cell--align-right ' 
-        'span'
-    )
-    if len(transaction_info) >= 4:
-        product_amt = transaction_info[0].text.strip()
-        shipping_amt = transaction_info[1].text.strip()
-        fee_amt = transaction_info[2].text.strip()
-        net_amt = transaction_info[3].text.strip()
-    else:
-        product_amt = 'N/A'
-        shipping_amt = 'N/A'
-        fee_amt = 'N/A'
-        net_amt = 'N/A'
-    
-    order_amt = driver.find_element(
-        By.CSS_SELECTOR, 
-        'div[data-testid="OrderDetails_TransactionDetails_Table"] '
-        'td.tcg-table-body__cell strong'
-    ).text
-
-    products = driver.find_elements(
-        By.CSS_SELECTOR,
-        'div[data-testid="OrderDetails_ProductList_Table"] '
-        'tbody tr.is-even, '
-        'div[data-testid="OrderDetails_ProductList_Table"] '
-        'tbody tr.is-odd'
-    )
-
-    product_list = []
-
-    # for product in products:
-    #     try:
-    #         tds = product.find_elements(By.CSS_SELECTOR, 'td')
-    #         if len(tds) >= 4:
-    #             product_url = (
-    #                 tds[0].find_element(By.TAG_NAME, 'a').get_attribute('href')
-    #                 if tds[0].find_elements(By.TAG_NAME, 'a') else 'N/A'
-    #             )
-    #             product_list.append({
-    #                 "Name": tds[0].text.strip(),
-    #                 "URL": product_url,
-    #                 "MP Price": tds[1].text.strip(),
-    #                 "Quantity": tds[2].text.strip(),
-    #                 "Ext Price": tds[3].text.strip()
-    #             })
-    #     except Exception as e:
-    #         print("Skipping product row:", e)
-    #         continue
-
-
-    for product in products:
-        try:
-            tds = product.find_elements(By.CSS_SELECTOR, 'td')
-            if len(tds) >= 4:
-                link_element = tds[0].find_element(By.TAG_NAME, 'a')
-                link = link_element.get_attribute('href')
-
-                # ✅ Wait until the product name is non-empty
-                wait.until(lambda d: link_element.text.strip() != "")
-
-                name = link_element.text.strip()
-                mp_price = tds[1].text.strip()
-                quantity = tds[2].text.strip()
-                ext_price = tds[3].text.strip()
-
-                print("Product Name:", name)
-                print("URL:", link)
-                print("MP Price:", mp_price)
-                print("Qty:", quantity)
-                print("Ext Price:", ext_price)
-
-                product_list.append({
-                    "Name": name,
-                    "URL": link,
-                    "MP Price": mp_price,
-                    "Quantity": quantity,
-                    "Ext Price": ext_price
-                })
-
-        except Exception as e:
-            print("Skipping product row:", e)
+        order_id = url.split("/")[-1]
+        if order_id in existing_orders:
+            print(f'Skipping duplicate order: {order_id}')
             continue
+    
+        buyer_name = driver.find_element(By.CSS_SELECTOR, 'p.margin-0 > strong').text
 
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'td')))
 
+        transaction_info = driver.find_elements(
+            By.CSS_SELECTOR, 
+            'div[data-testid="OrderDetails_TransactionDetails_Table"] '
+            'td.tcg-table-body__cell--align-right ' 
+            'span'
+        )
+        if len(transaction_info) >= 4:
+            product_amt = transaction_info[0].text.strip()
+            shipping_amt = transaction_info[1].text.strip()
+            fee_amt = transaction_info[2].text.strip()
+            net_amt = transaction_info[3].text.strip()
+        else:
+            product_amt = 'N/A'
+            shipping_amt = 'N/A'
+            fee_amt = 'N/A'
+            net_amt = 'N/A'
+        
+        order_amt = driver.find_element(
+            By.CSS_SELECTOR, 
+            'div[data-testid="OrderDetails_TransactionDetails_Table"] '
+            'td.tcg-table-body__cell strong'
+        ).text
 
+        wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, 
+            'div[data-testid="OrderDetails_ProductList_Table"] tbody tr.is-even, '
+            'div[data-testid="OrderDetails_ProductList_Table"] tbody tr.is-odd')
+        ))
 
-    all_orders.append({
-        'Order ID': order_id,
-        'Buyer': buyer_name,
-        'Product Amount': product_amt,
-        'Shipping Amount': shipping_amt,
-        'Order Amount': order_amt,
-        'Fee Amount': fee_amt,
-        'Net Amount': net_amt,
-        'Products': json.dumps(product_list)
-    })
+        products = driver.find_elements(
+            By.CSS_SELECTOR,
+            'div[data-testid="OrderDetails_ProductList_Table"] '
+            'tbody tr.is-even, '
+            'div[data-testid="OrderDetails_ProductList_Table"] '
+            'tbody tr.is-odd'
+        )
 
+        product_list = []
 
-with open("tcg_orders.csv", mode="w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=all_orders[0].keys())
-    writer.writeheader()
-    writer.writerows(all_orders)
+        for p in products:
+            try:
+                tds = p.find_elements(By.CSS_SELECTOR, 'td')
+                
+                if len(tds) >= 4:
+                    # link_element = tds[0].find_element(By.TAG_NAME, 'a')
+                    # link = link_element.get_attribute('href')
+
+                    # wait.until(lambda d: link_element.text.strip() != "")
+
+                    # name = link_element.text.strip()
+
+                    # wait.until(lambda d: tds[0].find_element(By.TAG_NAME, 'a').text.strip() != "")
+                    # link_element = tds[0].find_element(By.TAG_NAME, 'a')
+                    # link = link_element.get_attribute('href')
+                    # name = link_element.text.strip()
+
+                    mp_price = tds[1].text.strip()
+                    quantity = tds[2].text.strip()
+                    ext_price = tds[3].text.strip()
+
+                    if not mp_price and not quantity and not ext_price:
+                        continue
+
+                    # print("Product Name:", name)
+                    # print("URL:", link)
+                    print("MP Price:", mp_price)
+                    print("Qty:", quantity)
+                    print("Ext Price:", ext_price)
+
+                    product_list.append({
+                        # "Name": name,
+                        # "URL": link,
+                        "MP Price": mp_price,
+                        "Quantity": quantity,
+                        "Ext Price": ext_price
+                    })
+
+            except Exception as e:
+                print("Skipping product row:", e)
+                continue
+
+        all_orders.append({
+            'Order ID': order_id,
+            'Buyer': buyer_name,
+            'Product Amount': product_amt,
+            'Shipping Amount': shipping_amt,
+            'Order Amount': order_amt,
+            'Fee Amount': fee_amt,
+            'Net Amount': net_amt,
+            'Products': json.dumps(product_list)
+        })
+
+    except Exception as e:
+        print(f'Diver crashed or invalid session: {e}')
+        driver, wait = restart_driver(driver)
+        continue
+
+file_exists = os.path.exists(csv_file)
+
+if all_orders:
+    with open(csv_file, mode='a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=all_orders[0].keys())
+        
+        if not file_exists:
+            writer.writeheader()
+        writer.writerows(all_orders)
+else:
+    print('No orders were collected')
+
     
 
 
