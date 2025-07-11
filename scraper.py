@@ -176,15 +176,23 @@ for url in order_urls:
                     quantity = tds[2].text.strip()
                     ext_price = tds[3].text.strip()
 
-                    # original_window = driver.window_handles
-                    # driver.execute_script('window.open(arguments[0]);', link)
+                    if not mp_price and not quantity and not ext_price:
+                        continue
 
-                    # wait.until(lambda d: len(d.window_handles) > len(original_window))
-                    # new_window = [w for w in driver.window_handles if w not in original_window][0]
-                    # driver.switch_to.window(new_window)
+                    original_window = driver.current_window_handle
+                    
+                    ActionChains(driver) \
+                        .key_down(Keys.COMMAND) \
+                        .click(link_element) \
+                        .key_up(Keys.COMMAND) \
+                        .perform()
 
-                    # wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.product-details__name')))
-                    # card_name = driver.find_element(By.CSS_SELECTOR, 'h1.product-details__name').text.strip()
+                    wait.until(lambda d: len(d.window_handles) > 1)
+                    new_window = [w for w in driver.window_handles if w != original_window][0]
+                    driver.switch_to.window(new_window)
+
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.product-details__name')))
+                    card_name = driver.find_element(By.CSS_SELECTOR, 'h1.product-details__name').text.strip()
                     
                     # if '-' in card_name:
                     #     part_name = card_name.split(' - ')
@@ -192,16 +200,19 @@ for url in order_urls:
                     # else:
                     #     card_name_num = card_name
 
-                    # market_price = driver.find_element(By.CSS_SELECTOR, 'span.price-points__upper__price').text.strip()
+                    try:
+                        market_price = driver.find_element(By.CSS_SELECTOR, 'span.price-points__upper__price').text.strip()
+                    except:
+                        market_price = 'N/A'
 
-                    # driver.close()
-                    # driver.switch_to.window(original_window)
+                    driver.close()
+                    driver.switch_to.window(original_window)
 
-                if not mp_price and not quantity and not ext_price:
-                    continue
+                    time.sleep(1)
 
-                # print('Product Name:', card_name_num)
-                # print('Market Price:', market_price)
+
+                print('Product Name:', card_name)
+                print('Market Price:', market_price)
                 print('URL:', link)
                 print('MP Price:', mp_price)
                 print('Qty:', quantity)
@@ -209,8 +220,8 @@ for url in order_urls:
 
                 product_list.append({
                     'URL': link,
-                    # 'Product Name': card_name_num,
-                    # 'Market Price': market_price,
+                    'Product Name': card_name,
+                    'Market Price': market_price,
                     'MP Price': mp_price,
                     'Quantity': quantity,
                     'Exact Price': ext_price
